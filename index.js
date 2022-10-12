@@ -123,7 +123,7 @@ const treeOperation = (rootSource, action = () => { }, deepth = 0) => {
   while (files.hasNext()) {
     const file = files.next();
 
-    action({ item: file, deepth, isFolder: false });
+    action({ item: file, deepth: deepth + 1, isFolder: false });
   }
 
   // Folders loop
@@ -174,7 +174,9 @@ const tbcStrategy = (rootFolderUrl, renameValue) => {
 //#endregion
 
 //#region Duplicate Folder
-const duplicateFolder = (rootFolderUrl = "1rZWDUPcOuwjVXNq_PCOZB9yehljKnH0Y", newName = "") => {
+const duplicateFolder = (rootFolderUrl = "", newName = "") => {
+
+  if (!rootFolderUrl) return;
 
   try {
     clearCache()
@@ -191,8 +193,6 @@ const duplicateFolder = (rootFolderUrl = "1rZWDUPcOuwjVXNq_PCOZB9yehljKnH0Y", ne
       copyName = `COPY (${i}) ${rootName}`;
     }
 
-    console.log({ copyName, folderId })
-
     if (!newName)
       log(`|📁 ✅ ${copyName}`)
 
@@ -202,30 +202,29 @@ const duplicateFolder = (rootFolderUrl = "1rZWDUPcOuwjVXNq_PCOZB9yehljKnH0Y", ne
 
 
     const action = ({ isFolder, item, deepth }) => {
-      console.log({ isFolder, item: item.getName(), id: item.getId(), deepth, path: path.map(el => el.getName()) })
-      // if (isFolder) {
+      if (isFolder) {
 
-      //   while (deepth + 1 < path.length) {
-      //     // going up in the folders tree
-      //     path.pop();
-      //   }
+        if (item.getId() === folderId) return;
 
-      //   if (item.getId() === folderId) {
-      //     console.log("YES")
-      //     return
-      //   }
-      //   const createdFolder = path[deepth-1]?.createFolder(item?.getName())
-      //   path.push(createdFolder)
+        while (deepth < path.length) {
+          // going up in the folders tree
+          path.pop();
+        }
 
-      // } else {
-      //   const destinationFolder = path[path.length - 1]
-      //   const name = item.getName();
-      //   item.makeCopy(name, destinationFolder)
-      // }
 
-      // if (newName) return; // Avoiding feedback on custom function use
 
-      // // log(`|--${"--".repeat(deepth)}${isFolder ? '📁' : '|  📄'} ✅ ${item}`)
+        const createdFolder = path[deepth - 1]?.createFolder(item?.getName())
+        path.push(createdFolder)
+
+      } else {
+        const destinationFolder = path[path.length - 1]
+        const name = item.getName();
+        item.makeCopy(name, destinationFolder)
+      }
+
+      if (newName) return; // Avoiding feedback on custom function use
+
+      log(`|--${"--".repeat(deepth)}${isFolder ? '📁' : '|  📄'} ✅ ${item}`)
 
     }
 
