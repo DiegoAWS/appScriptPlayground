@@ -33,6 +33,7 @@ const readAllCache = () => {
 //#endregion
 
 function start() {
+  clearCache()
   const html = HtmlService.createHtmlOutputFromFile('modal')
     .setWidth(800)
     .setHeight(500);
@@ -174,7 +175,7 @@ const tbcStrategy = (rootFolderUrl, renameValue) => {
 //#endregion
 
 //#region Duplicate Folder
-const duplicateFolder = (rootFolderUrl = "", newName = "") => {
+const duplicateFolder = (rootFolderUrl = "https://drive.google.com/drive/folders/196dA7GSGq95yn-G98C1sbVZBk5L33xBP", newName = "") => {
 
   if (!rootFolderUrl) return;
 
@@ -224,13 +225,13 @@ const duplicateFolder = (rootFolderUrl = "", newName = "") => {
 
       if (newName) return; // Avoiding feedback on custom function use
 
-      log(`|--${"--".repeat(deepth)}${isFolder ? '📁' : '|  📄'} ✅ ${item}`)
+      log(`  ${"|  ".repeat(deepth)}${isFolder ? '📁' : '|  📄'} ✅ ${item}`)
 
     }
 
     treeOperation(rootFolder, action)
 
-    return true;
+    return targetFolder?.getId();
 
   }
   catch (e) {
@@ -241,7 +242,11 @@ const duplicateFolder = (rootFolderUrl = "", newName = "") => {
 //#endregion
 
 //#region Empty Space
-const emptySpace = (rootFolderUrl, codeName, clientName, users) => {
+const emptySpace = (rootFolderUrlEntry, codeName, clientName, users) => {
+
+const rootFolderUrl = duplicateFolder(rootFolderUrlEntry)
+
+if(!rootFolderUrl) return;
 
 
   try {
@@ -262,7 +267,7 @@ const emptySpace = (rootFolderUrl, codeName, clientName, users) => {
 
     const action = ({ item, isFolder, deepth }) => {
 
-      log(`|--${"--".repeat(deepth)}${isFolder ? '📁' : '|  📄'} ✅ ${item}`)
+      log(`  ${"|  ".repeat(deepth)}${isFolder ? '📁' : '|  📄'} ✅ ${item}`)
 
       rename.forEach(([search, replace]) => {
         renameElement(item, search, replace)
@@ -274,7 +279,7 @@ const emptySpace = (rootFolderUrl, codeName, clientName, users) => {
 
     const personsAction = ({ item, deepth, isFolder }) => {
 
-      log(`|--${"--".repeat(deepth)}${isFolder ? '📁' : '|  📄'} ✅ ${item}`)
+      log(`  ${"|  ".repeat(deepth)}${isFolder ? '📁' : '|  📄'} ✅ ${item}`)
 
       const oldName = item.getName()
       if (oldName.search(personsKey) === -1) return;
