@@ -4,15 +4,22 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DiegoAWS/appScriptPlayground.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "devDependencies": {
-    "nodemon": "^2.0.20"
+  "bugs": {
+    "url": "https://github.com/DiegoAWS/appScriptPlayground/issues"
   },
+  "homepage": "https://github.com/DiegoAWS/appScriptPlayground#readme",
   "dependencies": {
-    "@types/google-apps-script": "^1.0.55"
+    "@types/google-apps-script": "^1.0.55",
+    "nodemon": "^2.0.20",
+    "typescript": "^4.8.4"
   }
 }

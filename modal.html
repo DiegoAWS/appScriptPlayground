@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <base target="_top">
+  <style>
+    :root {
+      --principal-color: black;
+      --secondary-color: white;
+      --principal-background: white;
+      --secondary-background: #dadada;
+    }
+
+    body {
+      margin: 0;
+      min-height: 0;
+      overflow-y: hidden;
+    }
+
+    .select {
+      padding: 10px;
+      border-radius: 10px;
+      background-color: var(--secondary-background);
+    }
+
+    .btn {
+      padding: 10px;
+      border-radius: 10px;
+      background-color: var(--secondary-background);
+      cursor: pointer;
+    }
+
+    .modal {
+      background-color: white;
+
+      display: flex;
+    }
+
+    .container {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .modalHeader {
+      display: flex;
+      border-bottom: 1px solid black;
+      justify-content: space-between;
+      align-items: flex-end;
+      padding: 10px 0;
+    }
+
+    .modalBody {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow-y: auto;
+    }
+
+    .inputLine {
+      display: flex;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .inputLine input {
+      flex-grow: 1;
+      margin-left: 5px;
+      padding: 5px;
+      border: 1px solid black;
+      border-radius: 5px;
+    }
+
+    /* Magic lines */
+
+    .input-container {
+      height: 30px;
+      position: relative;
+      width: 100%;
+      margin-top: 30px;
+    }
+
+    .input {
+      background-color: white;
+      border: 1px solid black;
+      border-radius: 12px;
+      box-sizing: border-box;
+      color: black;
+      font-size: 15px;
+      height: 100%;
+      outline: 0;
+      padding: 4px 20px 0;
+      width: 100%;
+    }
+
+    .placeholder {
+      color: #65657b;
+      font-family: sans-serif;
+      left: 20px;
+      font-size: 0.8rem;
+      pointer-events: none;
+      position: absolute;
+      transform-origin: 0 50%;
+      transition: transform 200ms, color 200ms;
+      top: 8px;
+    }
+
+    .input:focus~.placeholder,
+    .input:not(:placeholder-shown)~.placeholder {
+      transform: translateY(-22px) translateX(-5px) scale(0.75);
+      background-color: gray;
+
+      padding: 5px;
+      border-radius: 5px;
+    }
+
+    .input:not(:placeholder-shown)~.placeholder {
+      color: white;
+    }
+
+    .input:focus~.placeholder {
+      color: white;
+    }
+
+    .logs-container {
+      overflow-y: auto;
+      max-height: 370px;
+    }
+
+    #inputs-container {
+      padding: 5px;
+      overflow-y: auto;
+      max-height: 420px;
+    }
+
+    #runButton {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-width: 80px;
+      max-height: 40px;
+    }
+
+
+    #runningIcon {
+      display: none;
+      transform: scale(0.7);
+    }
+
+    #resetButton {
+      display: none;
+    }
+
+    #finishedMessage {
+      color: green;
+      display: none;
+    }
+  </style>
+
+</head>
+
+<body>
+  <div class="modal">
+    <form id="mainForm" class="container">
+      <div class="modalHeader">
+        <select name="script" class="select" id="typeSelector">
+          <option value="" disabled selected>
+            --Please choose an option--
+          </option>
+          <option value="tbcTbd">TBC TBD</option>
+          <option value="blankTemplate">Blank Template</option>
+          <option value="updateCodename">Update CodeName</option>
+          <option value="duplicateFolder">Duplicate Folder</option>
+        </select>
+        <div id="finishedMessage">Process finished!</div>
+        <button type="submit" id="runButton" disabled class="btn">
+          <span id="runText">Run !</span>
+
+          <svg id="runningIcon" xmlns="http://www.w3.org/2000/svg" height="32" width="32" viewBox="0 0 32 32">
+            <g fill="#000000">
+              <path transform="rotate(0,16,16) translate(1.6,1.6) scale(0.9,0.9)"
+                d="M10.657013,28.944977C12.35199,29.644989,14.149017,30,16,30L16.015015,32 16,32C13.88501,32,11.830994,31.593994,9.8940125,30.794006z M25.903992,25.894989L27.319,27.307983C25.824005,28.804993,24.080017,29.972992,22.13501,30.781006L21.368011,28.934998C23.069,28.227997,24.595001,27.204987,25.903992,25.894989z M3.0700073,21.380981C3.7789917,23.082001,4.8040161,24.606995,6.1149902,25.914978L4.7030029,27.330994C3.2059937,25.837982,2.0350037,24.095001,1.223999,22.151001z M32,15.938995L32,16C32,18.118988,31.591003,20.177979,30.787018,22.121002L28.938995,21.35498C29.643005,19.656982,30,17.85498,30,16z M1.2000122,9.9100037L3.0490112,10.67099C2.3529968,12.362,2,14.153992,2,16L0,16.031006 0,16C0,13.891998,0.40301514,11.842987,1.2000122,9.9100037z M27.27301,4.6459961C28.77301,6.1359863,29.946991,7.8769836,30.761017,9.8179932L28.916992,10.59198C28.20401,8.8930054,27.177002,7.3699951,25.863007,6.0650024z M9.8340149,1.2309875L10.605011,3.0769958C8.9049988,3.7869873,7.381012,4.8129883,6.0750122,6.1259766L4.6570129,4.7149963C6.1490173,3.2160034,7.8909912,2.0440063,9.8340149,1.2309875z M15.953003,0L16,0C18.10199,0,20.145996,0.40197754,22.075012,1.1940002L21.315002,3.0440063C19.627991,2.3509827,17.839996,2,16,2z">
+                <animateTransform attributeName="transform" attributeType="XML" type="rotate" from="0, 16, 16"
+                  to="360, 16, 16" dur="1.5s" repeatCount="indefinite" />
+              </path>
+            </g>
+          </svg>
+        </button>
+
+        <button id="resetButton" class="btn">Reset</button>
+      </div>
+      <div class="modalBody">
+        <div class="modal-body-content">
+          <div id="inputs-container"> </div>
+          <div class="logs-container" id="logs-container"></div>
+
+        </div>
+      </div>
+    </form>
+  </div>
+  
+  <script>
+    const getElement = (entry) => {
+
+      const id = entry?.id || entry;
+
+      return document.getElementById(id);
+    }
+
+    let isActive = false;
+
+    const mainForm = getElement('mainForm');
+    const inputsContainer = getElement('inputs-container');
+    const logsContainer = getElement("logs-container")
+    const typeSelector = getElement('typeSelector');
+    const runButton = getElement('runButton');
+    const resetButton = getElement('resetButton')
+    const finishedMessage = getElement('finishedMessage')
+
+    const runText = getElement('runText');
+    const runningIcon = getElement('runningIcon');
+
+
+    const rootLink = {
+      id: 'root',
+      placeholder: 'Root Folder Link',
+    }
+
+    const oldProjectName = {
+      id: 'oldProjectName',
+      placeholder: 'Old Project Name',
+    }
+
+    const newProjectName = {
+      id: 'newProjectName',
+      placeholder: 'New Project Name',
+    }
+
+    const projectName = {
+      id: 'projectName',
+      placeholder: 'Project Name',
+    }
+
+    const clientName = {
+      id: 'clientName',
+      placeholder: 'Client Name'
+    }
+
+    const peoplesGroup = [
+      {
+        id: 'lead',
+        placeholder: 'Lead',
+      },
+      {
+        id: 'second',
+        placeholder: 'Second',
+      },
+      {
+        id: 'principal',
+        placeholder: 'Principal',
+      },
+      {
+        id: 'dataAnalist',
+        placeholder: 'Data Analyst',
+      },
+      {
+        id: 'techEditor',
+        placeholder: 'Tech Editor',
+      },
+      {
+        id: 'reviewer',
+        placeholder: 'Reviewer',
+      },
+      {
+        id: 'sme',
+        placeholder: 'SME',
+      },
+      {
+        id: 'shadow',
+        placeholder: 'Shadow',
+      },
+    ]
+
+
+    const createInput = ({ id, placeholder }, required = true) => {
+      const inputContainer = document.createElement('div');
+      inputContainer.className = 'input-container';
+
+      const inputHtml = document.createElement('input');
+      inputHtml.id = id;
+      inputHtml.className = 'input';
+
+      if (required) {
+        inputHtml.setAttribute("required", "")
+      }
+
+      inputHtml.type = 'text';
+      inputHtml.placeholder = " ";
+
+      const cutDiv = document.createElement('div');
+      cutDiv.className = 'cut';
+
+      const labelHtml = document.createElement('label');
+      labelHtml.className = 'placeholder';
+      labelHtml.htmlFor = id;
+      labelHtml.innerText = placeholder;
+
+      inputContainer.appendChild(inputHtml);
+      inputContainer.appendChild(cutDiv);
+      inputContainer.appendChild(labelHtml);
+
+      inputsContainer.appendChild(inputContainer);
+    }
+
+
+
+    typeSelector.addEventListener('change', (e) => {
+      const { value } = e.target;
+
+      // Clean Form
+      inputsContainer.innerHTML = '';
+      runButton.removeAttribute('disabled');
+
+      switch (value) {
+        case "tbcTbd":
+          createInput(rootLink);
+          createInput(projectName);
+
+          break;
+
+        case "blankTemplate":
+          createInput(rootLink);
+          createInput(projectName);
+          createInput(clientName)
+          peoplesGroup.forEach((item) => createInput(item, false));
+          break;
+
+        case "updateCodename":
+          createInput(rootLink);
+          createInput(oldProjectName)
+          createInput(newProjectName);
+
+          break;
+
+        case "duplicateFolder":
+          createInput(rootLink);
+
+
+          break;
+        default:
+          break;
+      }
+    })
+
+    let interval
+    const run = () => {
+      const value = typeSelector.value;
+      const rootLinkValue = getElement(rootLink)?.value;
+
+      setRunningState()
+
+      switch (value) {
+        case "tbcTbd":
+
+          const newProjectNameValue = getElement(projectName)?.value;
+
+          google.script.run.withSuccessHandler(success => {
+            setFinished(success)
+          }).tbcStrategy(rootLinkValue, newProjectNameValue);
+
+          break;
+
+        case "blankTemplate":
+          const newProjectNameValue2 = getElement(projectName)?.value;
+          const newClientName = getElement(clientName)?.value;
+          const users = peoplesGroup.map((item) => getElement(item)?.value);
+
+          google.script.run.withSuccessHandler(success => {
+            setFinished(success)
+          }).emptySpace(rootLinkValue, newProjectNameValue2, newClientName, users);
+
+
+          break;
+
+        case "updateCodename":
+          const oldProjectNameValue = getElement(oldProjectName)?.value;
+          const newRenamedClientNameValue = getElement(newProjectName)?.value;
+
+          google.script.run.withSuccessHandler(success => {
+            setFinished(success)
+          }).replaceName(rootLinkValue, oldProjectNameValue, newRenamedClientNameValue);
+
+
+          break;
+
+        case "duplicateFolder":
+          google.script.run.withSuccessHandler(success => {
+            setFinished(success)
+          }).duplicateFolder(rootLinkValue);
+
+          break;
+        default:
+          break;
+      }
+
+      interval = setInterval(() => {
+        google.script.run.withSuccessHandler(cacheResult).readAllCache();
+      }, 1000);
+    }
+
+
+    mainForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      run();
+    })
+
+    resetButton.addEventListener('click', (e) => {
+      e.preventDefault();
+      setInitialState();
+    })
+
+
+    // Cache Section
+
+
+    const cacheResult = ({ logs }) => {
+      console.log(logs)
+
+      if (!isActive) {
+        clearInterval(interval);
+      }
+
+      if (!logs?.length) return;
+
+      const html = logs.map(step => `<div class="noWrap">${step}</div>`).join("");
+      logsContainer.innerHTML = html;
+      logsContainer.scrollIntoView(false);
+    }
+
+
+    const setRunningState = () => {
+      inputsContainer.style.display = "none";
+      typeSelector.setAttribute("disabled", "")
+      runButton.setAttribute("disabled", "")
+      runText.style.display = "none";
+      runningIcon.style.display = "block";
+      isActive = true;
+
+    }
+
+    const setFinished = () => {
+      resetButton.style.display = "flex";
+      runButton.style.display = "none";
+      finishedMessage.style.display = "block";
+      isActive = false;
+    }
+
+    const setInitialState = () => {
+      finishedMessage.style.display = "none";
+      runButton.style.display = "flex";
+      resetButton.style.display = "none";
+
+      inputsContainer.style.display = "block";
+      typeSelector.removeAttribute("disabled")
+      typeSelector.value = "";
+
+      inputsContainer.innerHTML = '';
+      logsContainer.innerHTML = '';
+      runText.style.display = "inline";
+      runningIcon.style.display = "none";
+
+    }
+
+
+  </script>
+</body>
+
+</html>
