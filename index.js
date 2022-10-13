@@ -175,7 +175,7 @@ const tbcStrategy = (rootFolderUrl, renameValue) => {
 //#endregion
 
 //#region Duplicate Folder
-const duplicateFolder = (rootFolderUrl = "https://drive.google.com/drive/folders/196dA7GSGq95yn-G98C1sbVZBk5L33xBP", newName = "") => {
+const duplicateFolder = (rootFolderUrl, newName = "") => {
 
   if (!rootFolderUrl) return;
 
@@ -244,9 +244,9 @@ const duplicateFolder = (rootFolderUrl = "https://drive.google.com/drive/folders
 //#region Empty Space
 const emptySpace = (rootFolderUrlEntry, codeName, clientName, users) => {
 
-const rootFolderUrl = duplicateFolder(rootFolderUrlEntry)
+  const rootFolderUrl = duplicateFolder(rootFolderUrlEntry)
 
-if(!rootFolderUrl) return;
+  if (!rootFolderUrl) return;
 
 
   try {
@@ -339,4 +339,26 @@ const replaceName = (rootFolderUrl, searchName, renameValue) => {
   }
 };
 //#endregion
+
+
+const testEmpty = () => {
+  clearCache()
+  
+  const result = emptySpace(
+    "https://drive.google.com/drive/folders/1-qpL-w4O-JTvENzreAxQslAWY2iNUz9v",
+    "Pink",
+    "RingStone", ["Diego Escobar", "Hazem Alborous", "Ignacio Villa", "", "", ""])
+
+  console.log({ result })
+}
+
+// 
+
+
+
+
+
+
+
+
 
