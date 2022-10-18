@@ -434,20 +434,97 @@ const getListFiles = (rootSource) => {
 
 
 
+
+
+const printLogs = (list) => console.log(
+  list
+    .map(({ isFolder, name, depth, isDone }) =>
+      `${isDone ? "✅" : "⏹"}${" "
+        .repeat(depth)}${isFolder ? "📁" : "📄"} ${name}`)
+    .join("\n")
+);
+
+const getNewName = ({ isFolder, depth, name }, replaceArray) => {
+
+  const now = new Date();
+  const today = `${now.getYear()}${now.getMonth() + 1}${now.getDate()}_${now.getHours()}${now.getMinutes()}${now.getSeconds()} - `
+
+
+  const oldName = `${isFolder && depth === 0 ? today : ""}${name}`
+
+  const newName = replaceArray.reduce((acc, [pattern, replace]) => acc.replace(pattern, replace), oldName)
+
+  return newName;
+}
+
+const processList = (targetPaths, processElement = () => { }, replaceArray = []) => {
+
+
+  return (element, index) => {
+    const { item, isFolder, depth } = element;
+
+    const updatedName = getNewName(element, replaceArray)
+
+    while (depth < targetPaths.length - 1) {
+      // going up in the folders tree
+      targetPaths.pop();
+    }
+    const parentInTarget = targetPaths[depth]
+    if (isFolder) {
+      const newFolder = parentInTarget.createFolder(updatedName)
+      processElement(newFolder, element, index);
+      targetPaths.push(newFolder);
+
+    } else {
+      const newFile = item.makeCopy(updatedName, parentInTarget)
+      processElement(newFile, element, index);
+
+    }
+
+
+  }
+}
+
+
+const getInfo = (entry) => {
+  const id = entry.toString().split("/").pop();
+
+  const element = DriveApp.getFolderById(id);
+
+  const name = element.getName();
+  const parent = element.getParents().next();
+
+  return { id, element, name, parent };
+}
+
+const test3 = () => {
+  console.log("INDEXING process started")
+  const root = "https://drive.google.com/drive/folders/1f3nM4pLXwYOJutbeL0QJOa1Duc25eMyu";
+
+  const { element, parent } = getInfo(root);
+
+  const playList = getListFiles(element)
+  console.log("RENAME process started")
+
+  playList.forEach(processList([parent], (newCreated, { name, depth, isFolder }) => {
+
+    console.log(`${" ".repeat(depth)}${isFolder ? "📁" : "📄"} ${newCreated.getName()}`)
+  }))
+
+
+}
+
+
 //#region Empty Space 2
 const emptySpaceDuo = (rootFolderUrlEntry, codeName, clientName, users) => {
   try {
     clearCache()
 
-    console.log("RENAME process started")
 
-    const folderId = rootFolderUrlEntry.toString().split("/").pop();
 
-    const rootFolder = DriveApp.getFolderById(folderId);
 
-    const rootFolderName = rootFolder.getName();
 
-    const newName = `${codeName}-${clientName}-${rootFolderName}`
+
 
 
     const workList = getListFiles(rootFolder).map(item => ({ ...item, isDone: false }))
@@ -455,44 +532,43 @@ const emptySpaceDuo = (rootFolderUrlEntry, codeName, clientName, users) => {
 
 
 
-    const printLogs = (list) => console.log(
-      list
-        .map(({ isFolder, name, depth, isDone }) =>
-          `${isDone ? "✅" : "⏹"}${" "
-            .repeat(depth)}${isFolder ? "📁" : "📄"} ${name}`)
-        .join("\n")
-    );
 
-    printLogs(workList)
+
+    // printLogs(workList)
 
 
 
 
     const parentOfFolder = rootFolder.getParents().next();
 
+    const newName = `${codeName}-${clientName}-${rootFolderName}`
+
+    const getNewName = ({ name, depth }) => {
+
+      if (depth === 0) {
+        return newName
+      }
+
+      return name
+
+    }
+
+    workList.forEach(({ isFolder, name, depth }) => {
+      if (name.match(/Your\s?Name|PersonName/gi)) {
+
+        console.log(
+          `${" ".repeat(depth)}${isFolder ? "📁" : "📄"} ${name}`
+        )
+
+      }
+    })
     const targetPaths = [parentOfFolder]
+
+
+
     workList.forEach((element, index) => {
 
-      const { item, name, isFolder, depth } = element;
 
-      while (depth < targetPaths.length - 1) {
-        // going up in the folders tree
-        targetPaths.pop();
-      }
-      const parentInTarget = targetPaths[depth]
-      if (isFolder) {
-        const newFolder = parentInTarget.createFolder(name)
-        targetPaths.push(newFolder);
-
-
-      } else {
-        const newName = depth === 0 ? "COPY" : name
-        const newFile = item.makeCopy(newName, parentInTarget)
-      }
-
-      workList.splice(index, 1, { ...element, isDone: true })
-      console.log("CLEAR_______________________")
-      printLogs(workList)
 
     })
 
@@ -503,67 +579,6 @@ const emptySpaceDuo = (rootFolderUrlEntry, codeName, clientName, users) => {
 
     //   ✅
     // const logs = workList.map(({ item, path, isFolder, name, id }) => `⏹ ${isFolder?"📁":"📄"} name`)
-
-
-
-    // const rootFolderUrl = duplicateFolder(rootFolderUrlEntry, newName, true)
-
-    // if (!rootFolderUrl) return;
-
-
-
-
-
-
-
-
-
-
-    const persons = [...new Set(users.filter(item => !!item))]
-
-    const personsKey = /\[PersonName\]/
-
-    const rename = [
-      [/\[CustomerName\]|\[CLIENT\]/, clientName],
-      [/\[Code\s*Name\]/, codeName],
-      [/\<Code\s*Name\>/, codeName],
-      [/{Codename}/, codeName]
-    ]
-
-    const action = ({ item, isFolder, depth }) => {
-
-      log(`  ${"|  ".repeat(depth)}${isFolder ? '📁' : '|  📄'} ✅ ${item}`)
-
-      rename.forEach(([search, replace]) => {
-        renameElement(item, search, replace)
-        if (!isFolder) {
-          renameBodyDocument(item, search.toString().replace(/^\/|\/$/g, ""), replace)
-        }
-      })
-    }
-
-    const personsAction = ({ item, depth, isFolder }) => {
-
-      log(`  ${"|  ".repeat(depth)}${isFolder ? '📁' : '|  📄'} ✅ ${item}`)
-
-      const oldName = item.getName()
-      if (oldName.search(personsKey) === -1) return;
-
-      persons.forEach(person => {
-        const newName = oldName.replace(personsKey, person)
-        if (!isFolder) {
-          renameBodyDocument(item, "\[Your Name\]", person)
-          renameBodyDocument(item, "<Your Name>", person)
-          item.makeCopy(newName)
-        } else {
-          duplicateFolder(item, newName)
-        }
-      })
-      item.setTrashed(true);
-    }
-
-    // treeOperation(rootFolder, action) // expressions renames
-    // treeOperation(rootFolder, personsAction) // Person names renames
 
     return true
   }
@@ -592,5 +607,22 @@ const test = () => {
   console.log({ result })
 }
 
+
+// const testExtreme = () => {
+//   const root = "https://drive.google.com/drive/folders/11Tx39iP3i6Kw81zYyjgMPCfwpYSkbnsW"
+//   console.log("START EXTREME TEST")
+//   const result = emptySpaceDuo(
+//     root,
+//     "Red",
+//     "RingStone",
+//     [
+//       "Hazem Alborous",
+//       "Diego Escobar",
+//       "Jon White",
+//       "Ignacio Villa"
+//     ]);
+
+//   console.log({ result })
+// }
 
 
