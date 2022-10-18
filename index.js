@@ -1,5 +1,27 @@
 //#region Common functions
 
+const getInfo = (entry) => {
+  const id = entry.toString().split("/").pop();
+
+  const element = DriveApp.getFolderById(id);
+
+  const name = element.getName();
+  const parent = element.getParents().next();
+
+  return { id, element, name, parent };
+}
+
+const getNowString = () => {
+  const now = new Date();
+  return `${now.getFullYear()
+    }${(now.getMonth() + 1).toString().padStart(2, 0)
+    }${now.getDate().toString().padStart(2, 0)
+    }_${now.getHours().toString().padStart(2, 0)
+    }${now.getMinutes().toString().padStart(2, 0)
+    }${now.getSeconds().toString().padStart(2, 0)} - `
+}
+
+
 //#region Enums 
 const LOGS = "LOGS";
 const TPATH = "TPATH"
@@ -22,6 +44,10 @@ const log = (data) => {
 
 const clearCache = () => {
   writeCache(LOGS, [])
+}
+
+const deleteCache = (key) => {
+  cache.remove(key)
 }
 
 const readAllCache = () => {
@@ -65,49 +91,7 @@ const renameElement = (element, searchRegex, renameValue) => {
 };
 
 
-const renameBodyDocument = (file, searchExpressionAsString, renameValue, search = []) => {
 
-  const mimeType = file?.getMimeType()
-
-  if (
-    mimeType === "application/vnd.google-apps.document"
-  ) {
-
-
-    const idFile = file.getId();
-    const body = DocumentApp.openById(idFile)?.getBody();
-    const rangeElement = body.findText(searchExpressionAsString);
-
-    if (rangeElement) {
-      body.replaceText(searchExpressionAsString, renameValue);
-      return true;
-    }
-  }
-
-  if (
-    mimeType === "application/vnd.google-apps.spreadsheet"
-  ) {
-    const idFile = file.getId();
-
-    var sheets = SpreadsheetApp.openById(idFile).getSheets();
-
-    if (sheets.length === 0) return;
-
-
-    sheets.forEach(sheet => {
-
-      const textFinderSimple = sheet.createTextFinder(searchExpressionAsString);
-      textFinderSimple.replaceAllWith(renameValue);
-
-      search.forEach(look => {
-        const textFinder = sheet.createTextFinder(look);
-        textFinder.replaceAllWith(renameValue);
-      })
-
-    })
-  }
-  return false;
-};
 
 //#endregion
 
@@ -355,6 +339,20 @@ const replaceName = (rootFolderUrl, searchName, renameValue) => {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 //#region make list of files
 
 const getListFiles = (rootSource) => {
@@ -369,11 +367,11 @@ const getListFiles = (rootSource) => {
 
   const recusiveCall = (item, parent, path = [], depth = 0) => {
 
-
     result.push({
       id: item.getId(),
       name: item.getName(),
       parent: parent.getId(),
+      mimeType: "folder",
       path,
       isFolder: true,
       depth
@@ -389,6 +387,7 @@ const getListFiles = (rootSource) => {
       result.push({
         id: file.getId(),
         name: file.getName(),
+        mimeType: file.getMimeType(),
         path,
         parent: parent.getId(),
         isFolder: false,
@@ -405,8 +404,6 @@ const getListFiles = (rootSource) => {
 
   recusiveCall(rootSource, parentOfSource)
 
-
-
   const sortedResult = result
     .sort(({ path: aPath }, { path: bPath }) => aPath.join("/")?.localeCompare(bPath.join("/")))
     .map(({ path, ...rest }) => rest);
@@ -417,107 +414,152 @@ const getListFiles = (rootSource) => {
 //#endregion
 
 
+//   const newName = 
 
 
+//#region Rename Body
+const renameBodyDocument = (file, replace = []) => {
+
+  const mimeType = file?.getMimeType()
+  const idFile = file.getId();
+  if (
+    mimeType === "application/vnd.google-apps.document"
+  ) {
+
+    const body = DocumentApp.openById(idFile)?.getBody();
+
+    replace.forEach(([search, replace]) => {
+      if (body.findText(search)) {
+        body.replaceText(search, replace);
+      }
+    })
+  }
+
+  if (
+    mimeType === "application/vnd.google-apps.spreadsheet"
+  ) {
+    const sheets = SpreadsheetApp.openById(idFile).getSheets();
+
+    sheets.forEach(sheet => {
+      search.forEach(look => {
+        const textFinder = sheet.createTextFinder(look);
+        textFinder.replaceAllWith(renameValue);
+      })
+
+    })
+  }
+  return false;
+};
+//#endregion
 
 
+//#region Process Item 
+const processItem = (element, index, cacheKey, entry, isCopy = true, users) => {
+
+  const targetPaths = () => readCache(cacheKey)
+  const setTargetPath = (data) => writeCache(cacheKey, data)
+  let processElement = () => { }
+  let getNewName = () => e?.name;
+
+  const { id, isFolder, depth } = element;
+
+  const classElement = getInfo(id).element
 
 
+  if (depth === 0) {
+    const { parent } = getInfo(id)
+    setTargetPath([parent.getId()])
+  }
 
-const printLogs = (list) => console.log(
-  list
-    .map(({ isFolder, name, depth, isDone }) =>
-      `${isDone ? "✅" : "⏹"}${" "
-        .repeat(depth)}${isFolder ? "📁" : "📄"} ${name}`)
-    .join("\n")
-);
+  if (typeof entry === "string") {
+    getNewName = ({ name, depth }) => depth === 0 ? entry : name
+  }
 
-const getNewName = ({ isFolder, depth, name }, replaceArray) => {
+  if (Array.isArray(entry)) {
+    getNewName = ({ name }) => entry.reduce((acc, [pattern, replace]) => acc.replace(pattern, replace), name)
 
-  const now = new Date();
-  const today = `${now.getYear()}${now.getMonth() + 1}${now.getDate()}_${now.getHours()}${now.getMinutes()}${now.getSeconds()} - `
+    processElement = (classElement) => {
+      if (!classElement.getMimeType) return;
 
+      renameBodyDocument(classElement, entry)
 
-  const oldName = `${isFolder && depth === 0 ? today : ""}${name}`
-
-  const newName = replaceArray.reduce((acc, [pattern, replace]) => acc.replace(pattern, replace), oldName)
-
-  return newName;
-}
-
-
-
-
-
-const logLine = (newCreated, { depth, isFolder }) => console.log(`${" ".repeat(depth)}${isFolder ? "📁" : "📄"} ${newCreated.getName()}`)
-
-
-const targetPaths = () => readCache(TPATH)
-const setTargetPath=(data)=>writeCache(TPATH)
-const processList = (element, index, processElement = () => { }, replaceArray = []) => {
-
-
-  if (processElement === "log") {
-    processElement = logLine;
+    }
   }
 
 
-
-  const { item, isFolder, depth } = element;
-
-  const updatedName = getNewName(element, replaceArray)
+  const updatedName = getNewName(element);
 
   while (depth < targetPaths().length - 1) {
     // going up in the folders tree
-    setTargetPath(targetPaths().slice(0,-1));
+    setTargetPath(targetPaths().slice(0, -1));
   }
+
   const parentInTarget = DriveApp.getFolderById(targetPaths()[depth])
-  if (isFolder) {
-    const newFolder = parentInTarget.createFolder(updatedName)
-    processElement(newFolder, element, index);
-    setTargetPath( [...targetPaths(), newFolder.getId() ] );
 
-  } else {
-    const file = DriveApp.getFileById(item)
-    const newFile = file.makeCopy(updatedName, parentInTarget)
-    processElement(newFile, element, index);
+
+  if (isFolder) {
+
+    if (isCopy) {
+      classElement = parentInTarget.createFolder(updatedName)
+      processElement(classElement, element, index);
+
+    } else {
+      classElement.setName(updatedName)
+      processElement(classElement, element, index)
+    }
+    setTargetPath([...targetPaths(), classElement.getId()]);
+
+    return {
+      ...element,
+      name: updatedName,
+      id: classElement.getId(),
+    };
 
   }
-}
 
+  const file = DriveApp.getFileById(id)
 
-const getInfo = (entry) => {
-  const id = entry.toString().split("/").pop();
+  if (isCopy) {
+    classElement = file.makeCopy(updatedName, parentInTarget)
+    processElement(classElement, element, index);
+  } else {
+    classElement.setName(updatedName)
+    processElement(classElement, element, index);
 
-  const element = DriveApp.getFolderById(id);
-
-  const name = element.getName();
-  const parent = element.getParents().next();
-
-  return { id, element, name, parent };
-}
-
-const testPlaceHolderTemplates = () => {
-  console.log("INDEXING process started")
-  const root = "https://drive.google.com/drive/folders/1f3nM4pLXwYOJutbeL0QJOa1Duc25eMyu";
-
-
-  const { element, parent } = getInfo(root);
-
-  const playList = getListFiles(element)
-  console.log("RENAME process started")
-
-  const targetPaths = [parent]
-  const processElement = (newCreated, { name, depth, isFolder }) => console.log(`${" ".repeat(depth)}${isFolder ? "📁" : "📄"} ${newCreated.getName()}`)
-  const arrayReplacement = [
-    [/TBC|TBD/g, "Pink"]
-  ]
-
-  playList.forEach(processList(targetPaths, processElement, arrayReplacement))
-
-  console.log("FINISHED")
+  }
+  return {
+    ...element,
+    name: updatedName,
+    id: classElement.getId(),
+  };
 
 }
+//#endregion
+
+
+
+
+
+//#region copy ALL folders under folderId
+const copyFolder = (folderId, newName) => {
+
+  const cacheKey = "COPY";
+  const listOfFiles = getListFiles(folderId);
+
+  const getNewName = ({ name, depth }) => depth === 0 ? (newName || getNowString() + name) : name
+
+  const logLine = (newCreated, { depth, isFolder }) => console.log(`${" ".repeat(depth)}${isFolder ? "📁" : "📄"} ${newCreated.getName()}`)
+
+
+  listOfFiles.forEach((element, item) => {
+
+    processItem(element, item, cacheKey, getNewName, logLine)
+  })
+
+  deleteCache(cacheKey)
+
+}
+//#endregion
 
 
 
@@ -526,17 +568,20 @@ const index = (func, ...params) => {
     case "getListFiles":
       return getListFiles(...params)
     case "writeCache":
-     return writeCache(...params)
+      return writeCache(...params)
     case "readCache":
-     return readCache(...params)
-    case "processList":
-     return processList(...params)
-    case "setTargetPath":
-     return setTargetPath(...params)
+      return readCache(...params)
+    case "processItem":
+      return processItem(...params)
+    case "deleteCache":
+      return deleteCache(...params)
+    case "getNowString":
+      return getNowString(...params)
+    case "getInfo":
+      return getInfo(...params)
+
   }
 }
-
-
 
 
 
