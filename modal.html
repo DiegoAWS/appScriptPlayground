@@ -198,8 +198,18 @@
       </div>
     </form>
   </div>
-  
+
   <script>
+    const exec = (func,...args)=> new Promise((resolve,reject)=>{ 
+      google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler((e)=>{
+            console.error(e)
+            setFinished(e)
+            reject(e)
+          })
+        .index(func, ...args) });
+
     const getElement = (entry) => {
 
       const id = entry?.id || entry;
@@ -291,7 +301,7 @@
       inputHtml.className = 'input';
 
       if (required) {
-        inputHtml.setAttribute("required", "")
+        // inputHtml.setAttribute("required", "")
       }
 
       inputHtml.type = 'text';
@@ -353,7 +363,7 @@
     })
 
     let interval
-    const run = () => {
+    const run = async () => {
       const value = typeSelector.value;
       const rootLinkValue = getElement(rootLink)?.value;
 
@@ -375,11 +385,15 @@
           const newClientName = getElement(clientName)?.value;
           const users = peoplesGroup.map((item) => getElement(item)?.value);
 
-          google.script.run.withSuccessHandler(success => {
-            setFinished(success)
-          }).emptySpace(rootLinkValue, newProjectNameValue2, newClientName, users);
+         
 
+          console.log("HERE")
 
+          const list = await exec("getListFiles",rootLinkValue )
+
+          console.log(list)
+           setFinished()
+          
           break;
 
         case "updateCodename":
@@ -403,9 +417,9 @@
           break;
       }
 
-      interval = setInterval(() => {
-        google.script.run.withSuccessHandler(cacheResult).readAllCache();
-      }, 1000);
+      // interval = setInterval(() => {
+      //   google.script.run.withSuccessHandler(cacheResult).readAllCache();
+      // }, 1000);
     }
 
 

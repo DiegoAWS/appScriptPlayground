@@ -2,7 +2,7 @@
 
 //#region Enums 
 const LOGS = "LOGS";
-
+const TPATH = "TPATH"
 
 //#endregion
 
@@ -359,10 +359,8 @@ const replaceName = (rootFolderUrl, searchName, renameValue) => {
 
 const getListFiles = (rootSource) => {
 
-  const idFolder = rootSource?.getId && rootSource?.getId()
-
-  if (!idFolder && typeof rootSource === "string") {
-    rootSource = DriveApp.getFolderById(rootSource.split("/").pop())
+  if (!rootSource?.getId) {
+    rootSource = DriveApp.getFolderById(rootSource.toString().split("/").pop())
   }
 
   const result = []
@@ -370,7 +368,16 @@ const getListFiles = (rootSource) => {
   const parentOfSource = rootSource.getParents().next()
 
   const recusiveCall = (item, parent, path = [], depth = 0) => {
-    result.push({ item, parent, path, isFolder: true, depth })
+
+
+    result.push({
+      id: item.getId(),
+      name: item.getName(),
+      parent: parent.getId(),
+      path,
+      isFolder: true,
+      depth
+    });
 
     path = path.concat(item.getName());
     depth++;
@@ -378,13 +385,15 @@ const getListFiles = (rootSource) => {
     const files = item?.getFiles();
     while (files.hasNext()) {
       const file = files.next();
+
       result.push({
-        item: file,
+        id: file.getId(),
+        name: file.getName(),
         path,
-        parent,
+        parent: parent.getId(),
         isFolder: false,
         depth,
-      })
+      });
     }
 
     const folders = item?.getFolders();
@@ -399,13 +408,8 @@ const getListFiles = (rootSource) => {
 
 
   const sortedResult = result
-    .map((item) => ({
-      ...item,
-      name: item.item.getName(),
-      id: item?.item.getId()
-
-    }))
-    .sort(({ path: aPath }, { path: bPath }) => aPath.join("/")?.localeCompare(bPath.join("/")));
+    .sort(({ path: aPath }, { path: bPath }) => aPath.join("/")?.localeCompare(bPath.join("/")))
+    .map(({ path, ...rest }) => rest);
 
   return sortedResult;
 };
@@ -413,23 +417,7 @@ const getListFiles = (rootSource) => {
 //#endregion
 
 
-// const copyElement =({ isFolder,parent, item, depth }) => {
-//       if (isFolder) {
 
-
-//         parent.createFolder(item?.getName())
-//         path.push(createdFolder)
-
-//       } else {
-//         const destinationFolder = path[path.length - 1]
-//         const name = item.getName();
-//         item.makeCopy(name, destinationFolder)
-//       }
-
-
-
-
-//     }
 
 
 
@@ -457,30 +445,42 @@ const getNewName = ({ isFolder, depth, name }, replaceArray) => {
   return newName;
 }
 
-const processList = (targetPaths, processElement = () => { }, replaceArray = []) => {
 
 
-  return (element, index) => {
-    const { item, isFolder, depth } = element;
 
-    const updatedName = getNewName(element, replaceArray)
 
-    while (depth < targetPaths.length - 1) {
-      // going up in the folders tree
-      targetPaths.pop();
-    }
-    const parentInTarget = targetPaths[depth]
-    if (isFolder) {
-      const newFolder = parentInTarget.createFolder(updatedName)
-      processElement(newFolder, element, index);
-      targetPaths.push(newFolder);
+const logLine = (newCreated, { depth, isFolder }) => console.log(`${" ".repeat(depth)}${isFolder ? "📁" : "📄"} ${newCreated.getName()}`)
 
-    } else {
-      const newFile = item.makeCopy(updatedName, parentInTarget)
-      processElement(newFile, element, index);
 
-    }
+const targetPaths = () => readCache(TPATH)
+const setTargetPath=(data)=>writeCache(TPATH)
+const processList = (element, index, processElement = () => { }, replaceArray = []) => {
 
+
+  if (processElement === "log") {
+    processElement = logLine;
+  }
+
+
+
+  const { item, isFolder, depth } = element;
+
+  const updatedName = getNewName(element, replaceArray)
+
+  while (depth < targetPaths().length - 1) {
+    // going up in the folders tree
+    setTargetPath(targetPaths().slice(0,-1));
+  }
+  const parentInTarget = DriveApp.getFolderById(targetPaths()[depth])
+  if (isFolder) {
+    const newFolder = parentInTarget.createFolder(updatedName)
+    processElement(newFolder, element, index);
+    setTargetPath( [...targetPaths(), newFolder.getId() ] );
+
+  } else {
+    const file = DriveApp.getFileById(item)
+    const newFile = file.makeCopy(updatedName, parentInTarget)
+    processElement(newFile, element, index);
 
   }
 }
@@ -497,132 +497,48 @@ const getInfo = (entry) => {
   return { id, element, name, parent };
 }
 
-const test3 = () => {
+const testPlaceHolderTemplates = () => {
   console.log("INDEXING process started")
   const root = "https://drive.google.com/drive/folders/1f3nM4pLXwYOJutbeL0QJOa1Duc25eMyu";
+
 
   const { element, parent } = getInfo(root);
 
   const playList = getListFiles(element)
   console.log("RENAME process started")
 
-  playList.forEach(processList([parent], (newCreated, { name, depth, isFolder }) => {
+  const targetPaths = [parent]
+  const processElement = (newCreated, { name, depth, isFolder }) => console.log(`${" ".repeat(depth)}${isFolder ? "📁" : "📄"} ${newCreated.getName()}`)
+  const arrayReplacement = [
+    [/TBC|TBD/g, "Pink"]
+  ]
 
-    console.log(`${" ".repeat(depth)}${isFolder ? "📁" : "📄"} ${newCreated.getName()}`)
-  }))
+  playList.forEach(processList(targetPaths, processElement, arrayReplacement))
 
+  console.log("FINISHED")
 
 }
 
 
-//#region Empty Space 2
-const emptySpaceDuo = (rootFolderUrlEntry, codeName, clientName, users) => {
-  try {
-    clearCache()
 
-
-
-
-
-
-
-
-    const workList = getListFiles(rootFolder).map(item => ({ ...item, isDone: false }))
-
-
-
-
-
-
-    // printLogs(workList)
-
-
-
-
-    const parentOfFolder = rootFolder.getParents().next();
-
-    const newName = `${codeName}-${clientName}-${rootFolderName}`
-
-    const getNewName = ({ name, depth }) => {
-
-      if (depth === 0) {
-        return newName
-      }
-
-      return name
-
-    }
-
-    workList.forEach(({ isFolder, name, depth }) => {
-      if (name.match(/Your\s?Name|PersonName/gi)) {
-
-        console.log(
-          `${" ".repeat(depth)}${isFolder ? "📁" : "📄"} ${name}`
-        )
-
-      }
-    })
-    const targetPaths = [parentOfFolder]
-
-
-
-    workList.forEach((element, index) => {
-
-
-
-    })
-
-
-
-
-
-
-    //   ✅
-    // const logs = workList.map(({ item, path, isFolder, name, id }) => `⏹ ${isFolder?"📁":"📄"} name`)
-
-    return true
+const index = (func, ...params) => {
+  switch (func) {
+    case "getListFiles":
+      return getListFiles(...params)
+    case "writeCache":
+     return writeCache(...params)
+    case "readCache":
+     return readCache(...params)
+    case "processList":
+     return processList(...params)
+    case "setTargetPath":
+     return setTargetPath(...params)
   }
-  catch (e) {
-    console.log(e)
-    return false
-  }
-
-};
-//#endregion
-
-
-const test = () => {
-
-  const result = emptySpaceDuo(
-    "https://drive.google.com/drive/folders/1f3nM4pLXwYOJutbeL0QJOa1Duc25eMyu",
-    "Violet",
-    "RingStone",
-    [
-      "Hazem Alborous",
-      "Diego Escobar",
-      "Jon White",
-      "Ignacio Villa"
-    ]);
-
-  console.log({ result })
 }
 
 
-// const testExtreme = () => {
-//   const root = "https://drive.google.com/drive/folders/11Tx39iP3i6Kw81zYyjgMPCfwpYSkbnsW"
-//   console.log("START EXTREME TEST")
-//   const result = emptySpaceDuo(
-//     root,
-//     "Red",
-//     "RingStone",
-//     [
-//       "Hazem Alborous",
-//       "Diego Escobar",
-//       "Jon White",
-//       "Ignacio Villa"
-//     ]);
 
-//   console.log({ result })
-// }
+
+
 
 
