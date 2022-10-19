@@ -164,12 +164,10 @@
     <form id="mainForm" class="container">
       <div class="modalHeader">
         <select name="script" class="select" id="typeSelector">
-          <option value="" disabled selected>
-            --Please choose an option--
-          </option>
+          <option value="" disabled selected> --Please choose an option-- </option>
           <option value="tbcTbd">TBC TBD</option>
           <option disabled value="blankTemplate">Blank Template</option>
-          <option disabled value="updateCodename">Update CodeName</option>
+          <option value="updateCodename">Update CodeName</option>
           <option value="duplicateFolder">Duplicate Folder</option>
         </select>
         <div id="finishedMessage">Process finished!</div>
@@ -181,28 +179,22 @@
               .spinner_qM83 {
                 animation: spinner_8HQG 1.05s infinite
               }
-
               .spinner_oXPr {
                 animation-delay: .1s
               }
-
               .spinner_ZTLf {
                 animation-delay: .2s
               }
-
               @keyframes spinner_8HQG {
-
                 0%,
                 57.14% {
                   animation-timing-function: cubic-bezier(0.33, .66, .66, 1);
                   transform: translate(0)
                 }
-
                 28.57% {
                   animation-timing-function: cubic-bezier(0.33, 0, .66, .33);
                   transform: translateY(-6px)
                 }
-
                 100% {
                   transform: translate(0)
                 }
@@ -227,8 +219,7 @@
   </div>
 
   <script>
-    const exec = (func, ...args) => new Promise((resolve, reject) => {
-
+      const exec = (func, ...args) => new Promise((resolve, reject) => {
       try {
         google.script.run
           .withSuccessHandler(resolve)
@@ -236,19 +227,15 @@
             throw new Error(e);
           })
           .index(func, ...args)
-
       } catch (e) {
         console.error(e)
         setFinished(e)
         reject(e)
-
       }
     });
 
-    const getElement = (entry) => {
-
+      const getElement = (entry) => {
       const id = entry?.id || entry;
-
       return document.getElementById(id);
     }
 
@@ -264,7 +251,6 @@
 
     const runText = getElement('runText');
     const runningIcon = getElement('runningIcon');
-
 
     const rootLink = {
       id: 'root',
@@ -412,7 +398,7 @@
         const logs = listOfFiles.map((element, index) => {
           const pending = index >= finished.length
           const { name, isFolder, depth } = pending ? element : finished[index];
-          return `${pending ? "⏹" : "✅"}${"|__".repeat(depth)}${isFolder ? "📁" : "📄"} ${name}`
+          return `${pending ? "⏹" : "✅"}${"|__".repeat(depth)}|${isFolder ? "📁" : "📄"}| ${name}`
         })
 
         showProgress(logs)
@@ -423,53 +409,57 @@
     }
 
 
+      const tbcTbd = async (rootLinkValue, newProjectNameValue) => {
+        const replaceArray = [["TBC", newProjectNameValue], ["TBD", newProjectNameValue]];
+        await processFiles(rootLinkValue, replaceArray, false)
+      }
 
+      const blankTemplate = async () => {
 
+      }
+
+      const updateCodename = async (rootLinkValue, oldProjectNameValue, newRenamedClientNameValue) => {
+        const replaceArray = [[oldProjectNameValue, newRenamedClientNameValue]];
+        await processFiles(rootLinkValue, replaceArray, false)
+      }
+
+      const duplicateFolder = async (rootLinkValue) => {
+        const nowString = await exec("getNowString");
+        const { name } = await exec("getInfo", rootLinkValue)
+        const folderName = nowString + name;
+        await processFiles(rootLinkValue, folderName, true)
+      }
 
 
 
     const run = async () => {
+      const rootLinkValue = getElement(rootLink)?.value;
+      const newProjectNameValue = getElement(projectName)?.value;
+
+      const oldProjectNameValue = getElement(oldProjectName)?.value;
+      const newRenamedClientNameValue = getElement(newProjectName)?.value;
+
       try {
         const value = typeSelector.value;
-        const rootLinkValue = getElement(rootLink)?.value;
-        const newProjectName = getElement(projectName)?.value;
 
         setRunningState()
         showProgress(["Starting Indexing process..."])
 
         switch (value) {
           case "tbcTbd":
-
-            const replaceArray = [
-              ["TBC", newProjectName],
-              ["TBD", newProjectName]
-            ];
-            await processFiles(rootLinkValue, replaceArray, false)
-
+            await tbcTbd(rootLinkValue, newProjectNameValue);
             break;
 
           case "blankTemplate":
-
-
-
-
-
-
+            await blankTemplate(rootLinkValue)
             break;
 
           case "updateCodename":
-
-
+            await updateCodename(rootLinkValue, oldProjectNameValue, newRenamedClientNameValue)
             break;
 
           case "duplicateFolder":
-
-            const nowString = await exec("getNowString");
-            const { name } = await exec("getInfo", rootLinkValue)
-            const folderName = nowString + name;
-
-            await processFiles(rootLinkValue, folderName, true)
-
+            await duplicateFolder(rootLinkValue);
             break;
 
           default:
