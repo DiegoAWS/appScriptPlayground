@@ -175,43 +175,43 @@
         <div id="finishedMessage">Process finished!</div>
         <button type="submit" id="runButton" disabled class="btn">
           <span id="runText">Run !</span>
-            
-<svg id="runningIcon" width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-  <style>
-    .spinner_qM83 {
-      animation: spinner_8HQG 1.05s infinite
-    }
 
-    .spinner_oXPr {
-      animation-delay: .1s
-    }
+          <svg id="runningIcon" width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <style>
+              .spinner_qM83 {
+                animation: spinner_8HQG 1.05s infinite
+              }
 
-    .spinner_ZTLf {
-      animation-delay: .2s
-    }
+              .spinner_oXPr {
+                animation-delay: .1s
+              }
 
-    @keyframes spinner_8HQG {
+              .spinner_ZTLf {
+                animation-delay: .2s
+              }
 
-      0%,
-      57.14% {
-        animation-timing-function: cubic-bezier(0.33, .66, .66, 1);
-        transform: translate(0)
-      }
+              @keyframes spinner_8HQG {
 
-      28.57% {
-        animation-timing-function: cubic-bezier(0.33, 0, .66, .33);
-        transform: translateY(-6px)
-      }
+                0%,
+                57.14% {
+                  animation-timing-function: cubic-bezier(0.33, .66, .66, 1);
+                  transform: translate(0)
+                }
 
-      100% {
-        transform: translate(0)
-      }
-    }
-  </style>
-  <circle class="spinner_qM83" cx="4" cy="12" r="3" />
-  <circle class="spinner_qM83 spinner_oXPr" cx="12" cy="12" r="3" />
-  <circle class="spinner_qM83 spinner_ZTLf" cx="20" cy="12" r="3" />
-</svg>
+                28.57% {
+                  animation-timing-function: cubic-bezier(0.33, 0, .66, .33);
+                  transform: translateY(-6px)
+                }
+
+                100% {
+                  transform: translate(0)
+                }
+              }
+            </style>
+            <circle class="spinner_qM83" cx="4" cy="12" r="3" />
+            <circle class="spinner_qM83 spinner_oXPr" cx="12" cy="12" r="3" />
+            <circle class="spinner_qM83 spinner_ZTLf" cx="20" cy="12" r="3" />
+          </svg>
         </button>
 
         <button id="resetButton" class="btn">Reset</button>
@@ -227,20 +227,20 @@
   </div>
 
   <script>
-    const exec = (func,...args)=> new Promise((resolve,reject)=>{ 
+    const exec = (func, ...args) => new Promise((resolve, reject) => {
 
       try {
-      google.script.run
-        .withSuccessHandler(resolve)
+        google.script.run
+          .withSuccessHandler(resolve)
           .withFailureHandler((e) => {
             throw new Error(e);
           })
           .index(func, ...args)
 
       } catch (e) {
-            console.error(e)
-            setFinished(e)
-            reject(e)
+        console.error(e)
+        setFinished(e)
+        reject(e)
 
       }
     });
@@ -397,30 +397,30 @@
     })
 
 
-  const processFiles = async (rootLinkValue, entry, isCopy) => {
-    const listOfFiles = await exec("getListFiles", rootLinkValue);
+    const processFiles = async (rootLinkValue, entry, isCopy) => {
+      const listOfFiles = await exec("getListFiles", rootLinkValue);
 
-    const cacheKey = "PROCESS";
-    let finished = []
-    let i = 0;
-    for (const element of listOfFiles) {
-      const element = listOfFiles[i];
-      const updatedItem = await exec("processItem", element, i, cacheKey, entry, isCopy)
+      const cacheKey = "PROCESS";
+      let finished = []
+      let i = 0;
+      for (const element of listOfFiles) {
+        const element = listOfFiles[i];
+        const updatedItem = await exec("processItem", element, i, cacheKey, entry, isCopy)
 
-      finished.push(updatedItem)
+        finished.push(updatedItem)
 
-      const logs = listOfFiles.map((element, index) => {
-        const pending = index >= finished.length
-        const { name, isFolder, depth } = pending ? element : finished[index];
-        return `${pending ? "⏹" : "✅"}${"--".repeat(depth)}${isFolder ? "📁" : "📄"} ${name}`
-      })
+        const logs = listOfFiles.map((element, index) => {
+          const pending = index >= finished.length
+          const { name, isFolder, depth } = pending ? element : finished[index];
+          return `${pending ? "⏹" : "✅"}${"|__".repeat(depth)}${isFolder ? "📁" : "📄"} ${name}`
+        })
 
-      showProgress(logs)
-      i++;
+        showProgress(logs)
+        i++;
+      }
+
+      await exec("deleteCache", cacheKey)
     }
-
-    await exec("deleteCache", cacheKey)
-  }
 
 
 
@@ -430,51 +430,51 @@
 
     const run = async () => {
       try {
-      const value = typeSelector.value;
-      const rootLinkValue = getElement(rootLink)?.value;
+        const value = typeSelector.value;
+        const rootLinkValue = getElement(rootLink)?.value;
         const newProjectName = getElement(projectName)?.value;
 
-      setRunningState()
+        setRunningState()
         showProgress(["Starting Indexing process..."])
 
-      switch (value) {
-        case "tbcTbd":
+        switch (value) {
+          case "tbcTbd":
 
-          const replaceArray = [
-            ["TBC", newProjectName],
-            ["TBD", newProjectName]
-          ];
-          await processFiles(rootLinkValue, replaceArray, false)
+            const replaceArray = [
+              ["TBC", newProjectName],
+              ["TBD", newProjectName]
+            ];
+            await processFiles(rootLinkValue, replaceArray, false)
 
-          break;
+            break;
 
-        case "blankTemplate":
-
-
+          case "blankTemplate":
 
 
 
-          
-          break;
-
-        case "updateCodename":
 
 
-          break;
 
-        case "duplicateFolder":
+            break;
 
-          const nowString = await exec("getNowString");
-          const { name } = await exec("getInfo", rootLinkValue)
-          const folderName = nowString + name;
-          console.log({ folderName })
-          await processFiles(rootLinkValue, folderName, true)
+          case "updateCodename":
 
-          break;
 
-        default:
-          break;
-      }
+            break;
+
+          case "duplicateFolder":
+
+            const nowString = await exec("getNowString");
+            const { name } = await exec("getInfo", rootLinkValue)
+            const folderName = nowString + name;
+
+            await processFiles(rootLinkValue, folderName, true)
+
+            break;
+
+          default:
+            break;
+        }
       } catch (e) {
         console.error(e)
       } finally {
@@ -498,21 +498,21 @@
     // Cache Section
 
 
-        const showProgress = (logs) => {
-          if (!Array.isArray(logs) || !logs?.length) return;
+    const showProgress = (logs) => {
+      if (!Array.isArray(logs) || !logs?.length) return;
 
-          logsContainer.innerHTML = ""
+      logsContainer.innerHTML = ""
 
-          logs.forEach(step => {
-      
-          const line = document.createElement("div")
-          line.classList.add("noWrap")
-          line.innerText = step;
+      logs.forEach(step => {
 
-          logsContainer.appendChild(line)
-        })
-          
-      }
+        const line = document.createElement("div")
+        line.classList.add("noWrap")
+        line.innerText = step;
+
+        logsContainer.appendChild(line)
+      })
+
+    }
 
 
     const setRunningState = () => {

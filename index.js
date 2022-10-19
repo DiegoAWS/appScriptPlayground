@@ -463,7 +463,7 @@ const processItem = (element, index, cacheKey, entry, isCopy = true, users) => {
 
   const { id, isFolder, depth } = element;
 
-  const classElement = getInfo(id).element
+  let classElement= getInfo(id).element
 
 
   if (depth === 0) {
@@ -481,7 +481,7 @@ const processItem = (element, index, cacheKey, entry, isCopy = true, users) => {
     processElement = (classElement) => {
       if (!classElement.getMimeType) return;
 
-      renameBodyDocument(classElement, entry)
+      renameBodyDocument(classElement,entry)
 
     }
   }
@@ -495,7 +495,7 @@ const processItem = (element, index, cacheKey, entry, isCopy = true, users) => {
   }
 
   const parentInTarget = DriveApp.getFolderById(targetPaths()[depth])
-
+  
 
   if (isFolder) {
 
