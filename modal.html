@@ -221,12 +221,10 @@
   <script>
     const exec = (func, ...args) => new Promise((resolve, reject) => {
       try {
-        google.script.run
-          .withSuccessHandler(resolve)
-          .withFailureHandler((e) => {
-            throw new Error(e);
-          })
-          .index(func, ...args)
+         google.script.run
+         .withSuccessHandler(resolve)
+         .withFailureHandler((e) => {  throw new Error(e)})
+         .index(func, ...args)
       } catch (e) {
         console.error(e)
         console.log("ERROR")
@@ -392,9 +390,10 @@
       let i = 0;
       let logs
       for (const element of listOfFiles) {
-        const element = listOfFiles[i];
-        const updatedItem = await exec("processItem", element, i, cacheKey, entry, isCopy, users)
-
+        const element = (listOfFiles[i]);
+        console.log({ element, i, cacheKey, entry, isCopy})
+        const updatedItem = await exec("processItem", element, i, cacheKey, entry, isCopy)
+        console.log({updatedItem})
         finished.push(updatedItem)
 
          logs = listOfFiles.map((element, index) => {
@@ -439,22 +438,23 @@
 
 
       const tbcTbd = async (rootLinkValue, newProjectNameValue) => {
-        const replaceArray = [["TBC", newProjectNameValue], ["TBD", newProjectNameValue]];
+        const replaceArray = [["TBC|TBD", newProjectNameValue]];
         await processFiles(rootLinkValue, replaceArray, false)
       }
 
       const blankTemplate = async (rootLinkValue, newProjectNameValue,newClientName, users) => {
         const replaceArray = [
-           [/[\(\[](?:CustomerName|CLIENT)[\)\]]/, newClientName],
-    [/[\(\[\{<](?:Code\s?Name|CODENAME)[\)\]\}>]/i, newProjectNameValue],
-    [/Project <Name>/, "Project " + newProjectNameValue]
+           ["[\(\[](?:CustomerName|CLIENT)[\)\]]", newClientName],
+           ["[\(\[\{<](?:Code\s?Name|CODENAME)[\)\]\}>]", newProjectNameValue],
+           ["Project <Name>", "Project " + newProjectNameValue]
         ];
         await processFiles(rootLinkValue, replaceArray, true, users)
         
       }
 
-      const updateCodename = async (rootLinkValue, oldProjectNameValue, newRenamedClientNameValue) => {
-        const replaceArray = [[oldProjectNameValue, newRenamedClientNameValue]];
+      const updateCodename = async (rootLinkValue, search, replace) => {
+        const searchPattern = search.replace(/[-[\]{}()*+?.,\\^$|]/g, "\\$&")
+        const replaceArray = [[searchPattern, replace]];
         await processFiles(rootLinkValue, replaceArray, false)
       }
 
@@ -481,7 +481,7 @@
 
           case "blankTemplate":
             const newClientName = getElement(clientName)?.value;
-            const users = [... new Set(peoplesGroup.map((item) => getElement(item)?.value).filter(Boolean))];
+            const users = [...new Set(peoplesGroup.map((item) => getElement(item)?.value).filter(Boolean))];
           
             await blankTemplate(rootLinkValue, newProjectNameValue,newClientName, users )
             break;

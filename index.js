@@ -25,6 +25,15 @@ const getNowString = () => {
     }${now.getSeconds().toString().padStart(2, 0)} - `
 }
 
+// Open Modal
+function start() {
+  const html = HtmlService.createHtmlOutputFromFile('modal')
+    .setWidth(800)
+    .setHeight(500);
+  SpreadsheetApp.getUi()
+    .showModalDialog(html, 'Tool');
+}
+
 
 //#region Enums 
 const LOGS = "LOGS";
@@ -110,6 +119,7 @@ const getListFiles = (rootSource) => {
 
 const renameBodyDocument = (file, replace = []) => {
   const clearRegex = (reg) => {
+    if (!(reg instanceof RegExp)) return reg
     const regString = reg.toString()
     return regString.substring(regString.indexOf("/") + 1, regString.lastIndexOf("/"))
   }
@@ -176,6 +186,7 @@ const renameBodyDocument = (file, replace = []) => {
 //#region Process Item 
 
 const processItem = (element, index, cacheKey, entry, isCopy) => {
+
   const targetPaths = () => readCache(cacheKey)
   const setTargetPath = (data) => writeCache(cacheKey, data)
   let processElement = () => { }
@@ -190,7 +201,10 @@ const processItem = (element, index, cacheKey, entry, isCopy) => {
   }
 
   if (Array.isArray(entry)) {
-    getNewName = ({ name }) => entry.reduce((acc, [pattern, replace]) => acc.replace(pattern, replace), name)
+
+    const updatedArrayEntry = entry.map(([pattern, replace]) => [new RegExp(pattern, "ig"), replace])
+    console.log(updatedArrayEntry)
+    getNewName = ({ name }) => updatedArrayEntry.reduce((acc, [pattern, replace]) => acc.replace(pattern, replace), name)
 
     processElement = (e) => {
       if (!e.getMimeType) return;
@@ -270,18 +284,23 @@ const copyFolder = (folderId, newName) => {
 //#endregion
 
 
-//#region Main entrypoints
 
 
-
-// Open Modal
-function start() {
-  const html = HtmlService.createHtmlOutputFromFile('modal')
-    .setWidth(800)
-    .setHeight(500);
-  SpreadsheetApp.getUi()
-    .showModalDialog(html, 'Tool');
+const copyFile = (id, newName) => {
+  DriveApp.getFileById(id).makeCopy(newName)
 }
+
+const deleteElement = (isFolder, id) => {
+  if (isFolder) {
+    DriveApp.getFolderById(id).setTrashed(true)
+  } else {
+    DriveApp.getFileById(id).setTrashed(true)
+  }
+}
+
+
+
+//#region Main entrypoints
 
 const index = (func, ...params) => {
   try {
@@ -306,7 +325,9 @@ const index = (func, ...params) => {
         return copyFile(...params)
       case "deleteElement":
         return deleteElement(...params)
-
+      default:
+        console.log("HERE?")
+        break
 
     }
   } catch (e) {
@@ -318,19 +339,25 @@ const index = (func, ...params) => {
 //#endregion 
 
 
+
+
+
+
 const test = () => {
   // const url = "https://drive.google.com/drive/folders/15wnmtVFo4ZdSb7cXMnmLeMepmBs8elL3" // big production like folder
-  const url = "https://drive.google.com/drive/folders/1f3nM4pLXwYOJutbeL0QJOa1Duc25eMyu" // test folder little 26 elements
-  // const url = "https://drive.google.com/drive/folders/1UlSrNo7bG9xeQUTdKsLoONOsHh-FwIh1" // Very little 7 elements
+  // const url = "https://drive.google.com/drive/folders/1f3nM4pLXwYOJutbeL0QJOa1Duc25eMyu" // test folder little 26 elements
+  const url = "https://drive.google.com/drive/folders/1UlSrNo7bG9xeQUTdKsLoONOsHh-FwIh1" // Very little 7 elements
   const list = getListFiles(url);
 
   const clientName = "Client 113";
   const codeName = "Pink";
 
   const entry = [
-    [/[\(\[](?:CustomerName|CLIENT)[\)\]]/, clientName],
-    [/[\(\[\{<](?:Code\s?Name|CODENAME)[\)\]\}>]/i, codeName],
-    [/Project <Name>/, "Project " + codeName]
+    ["\\[(?:CustomerName|CLIENT)\\]", clientName],
+    ["[\\[\\(\\{]:Code\\s?Name[\\]\\)\\}\\>]", codeName],
+    ["Project <Name>", "Project " + codeName]
+
+
   ];
 
   const personKey = /\[PersonName\]/
@@ -369,16 +396,13 @@ const test = () => {
   })
 }
 
-const copyFile = (id, newName) => {
-  DriveApp.getFileById(id).makeCopy(newName)
-}
 
-const deleteElement = (isFolder, id) => {
-  if (isFolder) {
-    DriveApp.getFolderById(id).setTrashed(true)
-  } else {
-    DriveApp.getFileById(id).setTrashed(true)
-  }
-}
+
+
+
+
+
+
+
 
 
