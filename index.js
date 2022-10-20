@@ -156,12 +156,14 @@ const renameBodyDocument = (file, replace = []) => {
 
     slides.forEach(slide => {
       replace.forEach(([searchRegex, replace]) => {
-        const numberReplaced = slide.replaceAllText(searchRegex, replace)
-        console.log({ numberReplaced })
-        if (numberReplaced) {
-          changed = true;
+        try {
+          const search = clearRegex(searchRegex)
+          if (slide?.replaceAllText && slide.replaceAllText(search, replace)) {
+            changed = true;
+          }
+        } catch (e) {
+          console.log(e)
         }
-
       })
     })
   }
@@ -173,7 +175,7 @@ const renameBodyDocument = (file, replace = []) => {
 
 //#region Process Item 
 
-const processItem = (element, index, cacheKey, entry, isCopy, users) => {
+const processItem = (element, index, cacheKey, entry, isCopy) => {
   const targetPaths = () => readCache(cacheKey)
   const setTargetPath = (data) => writeCache(cacheKey, data)
   let processElement = () => { }
@@ -205,7 +207,11 @@ const processItem = (element, index, cacheKey, entry, isCopy, users) => {
 
   const parentInTarget = DriveApp.getFolderById(targetPaths()[depth])
 
-  const updatedName = ((isCopy && depth === 0) ? getNowString() : "") + getNewName(element);
+  const updatedName = (typeof entry === "string" && depth === 0)
+    ? entry
+    : ((isCopy && depth === 0)
+      ? getNowString()
+      : "") + getNewName(element);
 
   if (isFolder) {
 
@@ -251,17 +257,11 @@ const processItem = (element, index, cacheKey, entry, isCopy, users) => {
 //#region copy ALL folders under folderId
 const copyFolder = (folderId, newName) => {
 
-  const cacheKey = "COPY";
+  const cacheKey = "COPY_FOLDER";
   const listOfFiles = getListFiles(folderId);
-
-  const getNewName = ({ name, depth }) => depth === 0 ? (newName || getNowString() + name) : name
-
-  const logLine = (newCreated, { depth, isFolder }) => Logger.log(`${" ".repeat(depth)}${isFolder ? "📁" : "📄"} ${newCreated.getName()}`)
-
-
   listOfFiles.forEach((element, item) => {
 
-    processItem(element, item, cacheKey, getNewName, logLine)
+    processItem(element, item, cacheKey, newName, true)
   })
 
   deleteCache(cacheKey)
@@ -300,6 +300,13 @@ const index = (func, ...params) => {
         return getNowString(...params)
       case "getInfo":
         return getInfo(...params)
+      case "copyFolder":
+        return copyFolder(...params)
+      case "copyFile":
+        return copyFile(...params)
+      case "deleteElement":
+        return deleteElement(...params)
+
 
     }
   } catch (e) {
@@ -312,8 +319,9 @@ const index = (func, ...params) => {
 
 
 const test = () => {
-  const url = "https://drive.google.com/drive/folders/15wnmtVFo4ZdSb7cXMnmLeMepmBs8elL3" // big production like folder
-  // const url = "https://drive.google.com/drive/folders/1f3nM4pLXwYOJutbeL0QJOa1Duc25eMyu" // test folder little 26 elements
+  // const url = "https://drive.google.com/drive/folders/15wnmtVFo4ZdSb7cXMnmLeMepmBs8elL3" // big production like folder
+  const url = "https://drive.google.com/drive/folders/1f3nM4pLXwYOJutbeL0QJOa1Duc25eMyu" // test folder little 26 elements
+  // const url = "https://drive.google.com/drive/folders/1UlSrNo7bG9xeQUTdKsLoONOsHh-FwIh1" // Very little 7 elements
   const list = getListFiles(url);
 
   const clientName = "Client 113";
@@ -325,46 +333,52 @@ const test = () => {
     [/Project <Name>/, "Project " + codeName]
   ];
 
+  const personKey = /\[PersonName\]/
+
   const users = [
     "Diego Escobar",
     "Hazem Alborous"
   ];
 
   const total = list.length
-  list.forEach((element, index) => {
-    const { name, isFolder, depth } = processItem(element, index, "test", entry, true, users)
+  const results = list.map((element, index) => {
+    const completed = processItem(element, index, "test", entry, true, users)
+    const { name, isFolder, depth } = completed;
     console.log(`${index + 1}/${total} ${" ".repeat(depth)}${isFolder ? "📁" : "📄"} ${name}`)
+
+    return completed
   });
-}
 
-const test2 = () => {
-  const id = "16KUzNx03ayKMmjhyvFDP9XGSvBypTb7DX20QfoW48OU";
+  const personList = results.filter(({ name }) => name.match(personKey))
 
-  const file = DriveApp.getFileById(id)
-
-  const mimeType = file?.getMimeType()
-  const idFile = file.getId();
-  const replace = [[/Project <Name>/, "Project " + "Pink"]]
-  if (
-    mimeType === "application/vnd.google-apps.presentation"
-  ) {
-    const slides = SlidesApp.openById(idFile)?.getSlides();
-    console.log(slides.length)
-    slides.forEach(slide => {
-      replace.forEach(([searchRegex, replace]) => {
-        const a = slide?.replaceAllText && slide.replaceAllText(searchRegex, replace)
-
-        console.log({ a })
-      })
+  personList.forEach(({ id, isFolder, name }) => {
+    users.forEach(user => {
+      const newName = name.replace(personKey, user)
+      if (isFolder) {
+        copyFolder(id, newName)
+      } else {
+        DriveApp.getFileById(id).makeCopy(newName);
+      }
     })
-  }
+    if (isFolder) {
+      DriveApp.getFolderById(id).setTrashed(true)
+    } else {
+      DriveApp.getFileById(id).setTrashed(true)
+    }
 
-
-
+  })
 }
 
+const copyFile = (id, newName) => {
+  DriveApp.getFileById(id).makeCopy(newName)
+}
 
-
-
+const deleteElement = (isFolder, id) => {
+  if (isFolder) {
+    DriveApp.getFolderById(id).setTrashed(true)
+  } else {
+    DriveApp.getFileById(id).setTrashed(true)
+  }
+}
 
 

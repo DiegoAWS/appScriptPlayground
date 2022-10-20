@@ -390,24 +390,49 @@
       const cacheKey = "PROCESS";
       let finished = []
       let i = 0;
+      let logs
       for (const element of listOfFiles) {
         const element = listOfFiles[i];
         const updatedItem = await exec("processItem", element, i, cacheKey, entry, isCopy, users)
 
         finished.push(updatedItem)
 
-        const logs = listOfFiles.map((element, index) => {
+         logs = listOfFiles.map((element, index) => {
           const pending = index >= finished.length
           const { name, isFolder, depth } = pending ? element : finished[index];
           return `${pending ? "⏹" : "✅"}${"|__".repeat(depth)}|${isFolder ? "📁" : "📄"}| ${name}`
         })
 
         showProgress(logs)
-
-
-
         i++;
       }
+      if(users?.length){
+        logs.push("Finishing...")
+        showProgress()
+        const personKey =/\[PersonName\]/;
+
+        const personList = finished.filter(({ name }) => name.match(personKey))
+
+        for (const { id, isFolder, name, depth } of personList){
+
+         logs.push(`✅${"|__".repeat(depth)}|${isFolder ? "📁" : "📄"}| ${name}`)
+
+         for (const user of users) {
+            const newName = name.replace(personKey, user)
+            if (isFolder) {
+               await exec("copyFolder", id, newName)
+            } else {
+               await exec("copyFile", id, newName)
+            }
+          }
+               await exec("deleteElement", isFolder, id)
+
+       
+
+        showProgress(logs)
+        }    
+      }
+
 
       await exec("deleteCache", cacheKey)
     }
@@ -420,7 +445,9 @@
 
       const blankTemplate = async (rootLinkValue, newProjectNameValue,newClientName, users) => {
         const replaceArray = [
-          
+           [/[\(\[](?:CustomerName|CLIENT)[\)\]]/, newClientName],
+    [/[\(\[\{<](?:Code\s?Name|CODENAME)[\)\]\}>]/i, newProjectNameValue],
+    [/Project <Name>/, "Project " + newProjectNameValue]
         ];
         await processFiles(rootLinkValue, replaceArray, true, users)
         
@@ -454,7 +481,7 @@
 
           case "blankTemplate":
             const newClientName = getElement(clientName)?.value;
-            const users = peoplesGroup.map((item) => getElement(item)?.value);
+            const users = [... new Set(peoplesGroup.map((item) => getElement(item)?.value).filter(Boolean))];
           
             await blankTemplate(rootLinkValue, newProjectNameValue,newClientName, users )
             break;
