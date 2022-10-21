@@ -117,13 +117,15 @@ const getListFiles = (rootSource) => {
 
 //#region Rename Body
 
-const renameBodyDocument = (file, replace = []) => {
+const renameBodyDocument = (file, replaceArray = []) => {
   const clearRegex = (reg) => {
     if (!(reg instanceof RegExp)) return reg
     const regString = reg.toString()
     return regString.substring(regString.indexOf("/") + 1, regString.lastIndexOf("/"))
   }
-
+  if (!file?.getMimeType && typeof file === "string") {
+    file = DriveApp.getFileById(file)
+  }
   const mimeType = file?.getMimeType()
   const idFile = file.getId();
   let changed = false;
@@ -131,10 +133,14 @@ const renameBodyDocument = (file, replace = []) => {
     mimeType === "application/vnd.google-apps.document"
   ) {
     const body = DocumentApp.openById(idFile)?.getBody();
-
-    replace.forEach(([searchRegex, replace]) => {
+    console.log({ replaceArray })
+    replaceArray.forEach(([searchRegex, replace]) => {
       const search = clearRegex(searchRegex);
-      if (body.findText(search)) {
+      console.log({ search, searchRegex })
+      const found = body.findText(search)
+
+      console.log({ found })
+      if (found) {
         body.replaceText(search, replace);
         changed = true;
       }
@@ -147,7 +153,7 @@ const renameBodyDocument = (file, replace = []) => {
     const sheets = SpreadsheetApp.openById(idFile).getSheets();
 
     sheets.forEach(sheet => {
-      replace.forEach(([searchRegex, replace]) => {
+      replaceArray.forEach(([searchRegex, replace]) => {
         const search = clearRegex(searchRegex);
         const textFinder = sheet.createTextFinder(search);
         if (textFinder) {
@@ -165,10 +171,14 @@ const renameBodyDocument = (file, replace = []) => {
     const slides = SlidesApp.openById(idFile)?.getSlides();
 
     slides.forEach(slide => {
-      replace.forEach(([searchRegex, replace]) => {
+      replaceArray.forEach(([searchRegex, replace]) => {
         try {
           const search = clearRegex(searchRegex)
-          if (slide?.replaceAllText && slide.replaceAllText(search, replace)) {
+
+          console.log({search, searchRegex})
+          const updated = slide?.replaceAllText && slide.replaceAllText(search, replace)
+          if (updated) {
+             console.log({updated,searchRegex, search, replace })
             changed = true;
           }
         } catch (e) {
@@ -203,8 +213,11 @@ const processItem = (element, index, cacheKey, entry, isCopy) => {
   if (Array.isArray(entry)) {
 
     const updatedArrayEntry = entry.map(([pattern, replace]) => [new RegExp(pattern, "ig"), replace])
-    console.log(updatedArrayEntry)
-    getNewName = ({ name }) => updatedArrayEntry.reduce((acc, [pattern, replace]) => acc.replace(pattern, replace), name)
+    getNewName = ({ name }) => updatedArrayEntry.reduce((acc, [pattern, replace]) => {
+      const result = acc.replace(pattern, replace)
+      console.log({ result, acc, pattern })
+      return result
+    }, name)
 
     processElement = (e) => {
       if (!e.getMimeType) return;
@@ -213,7 +226,7 @@ const processItem = (element, index, cacheKey, entry, isCopy) => {
 
     }
   }
-
+  
   while (depth < targetPaths().length - 1) {
     // going up in the folders tree
     setTargetPath(targetPaths().slice(0, -1));
@@ -286,9 +299,7 @@ const copyFolder = (folderId, newName) => {
 
 
 
-const copyFile = (id, newName) => {
-  DriveApp.getFileById(id).makeCopy(newName)
-}
+const copyFile = (id, newName) => DriveApp.getFileById(id).makeCopy(newName)?.getId();
 
 const deleteElement = (isFolder, id) => {
   if (isFolder) {
@@ -325,8 +336,10 @@ const index = (func, ...params) => {
         return copyFile(...params)
       case "deleteElement":
         return deleteElement(...params)
+      case "renameBodyDocument":
+        return renameBodyDocument(...params)
       default:
-        console.log("HERE?")
+        console.log("Default option reashed")
         break
 
     }
@@ -346,7 +359,7 @@ const index = (func, ...params) => {
 const test = () => {
   // const url = "https://drive.google.com/drive/folders/15wnmtVFo4ZdSb7cXMnmLeMepmBs8elL3" // big production like folder
   // const url = "https://drive.google.com/drive/folders/1f3nM4pLXwYOJutbeL0QJOa1Duc25eMyu" // test folder little 26 elements
-  const url = "https://drive.google.com/drive/folders/1UlSrNo7bG9xeQUTdKsLoONOsHh-FwIh1" // Very little 7 elements
+  const url = "https://drive.google.com/drive/folders/1UlSrNo7bG9xeQUTdKsLoONOsHh-FwIh1" // Very little 4 elements
   const list = getListFiles(url);
 
   const clientName = "Client 113";
@@ -354,13 +367,14 @@ const test = () => {
 
   const entry = [
     ["\\[(?:CustomerName|CLIENT)\\]", clientName],
-    ["[\\[\\(\\{]:Code\\s?Name[\\]\\)\\}\\>]", codeName],
+    ["[<\\[\\(\\{]Code\\s?Name[\\]\\)\\}\\>]", codeName],
     ["Project <Name>", "Project " + codeName]
 
 
   ];
 
-  const personKey = /\[PersonName\]/
+  const personKey = "\\[PersonName\\]"
+  const personKeyRegExp = new RegExp(personKey)
 
   const users = [
     "Diego Escobar",
@@ -376,15 +390,18 @@ const test = () => {
     return completed
   });
 
-  const personList = results.filter(({ name }) => name.match(personKey))
+  const personList = results.filter(({ name }) => name.match(personKeyRegExp))
 
   personList.forEach(({ id, isFolder, name }) => {
     users.forEach(user => {
-      const newName = name.replace(personKey, user)
+      const newName = name.replace(personKeyRegExp, user)
       if (isFolder) {
+        console.log({ id, name })
         copyFolder(id, newName)
       } else {
-        DriveApp.getFileById(id).makeCopy(newName);
+        const newFile = DriveApp.getFileById(id).makeCopy(newName);
+        const line = [["(?:\\[|<)Your Name(?:\]|>)", user]]
+        renameBodyDocument(newFile, [...entry, ...line])
       }
     })
     if (isFolder) {
@@ -396,8 +413,51 @@ const test = () => {
   })
 }
 
+const testError = () => {
+  const data = {
+    "element": {
+      id: '19Uy9ZDIQbgS3abAudHRI9Fgr1k7yaNDmSaFpmWgzICo',
+      name: 'TechDD - Phase I or Outside-In - Logitech - White',
+      mimeType: 'application/vnd.google-apps.presentation',
+      path: ['zArchives (Keep Things Tidy) - Logitech - White'],
+      parent: '1lwwk6dm-UYW_D89vKOgdGNhLQGFTJVAb',
+      isFolder: false,
+      depth: 0
+    },
+    "i": 5,
+    "cacheKey": "PROCESS",
+    "entry": [
+      // [
+      //   "\\[(?:CustomerName|CLIENT)\\]",
+      //   "RingStone"
+      // ],
+      [
+        "[\\<\\[\\(\\{]Code\\s?Name[\\]\\)\\}\\>]",
+        "Pink"
+      ],
+
+      [
+        "Project <Name>",
+        "Project Pink"
+      ],
+      [
+        "<Project Name>",
+        "Pink"
+      ]
+    ],
+    "isCopy": false
+  }
 
 
+  // const { element, i, cacheKey, entry, isCopy } = data;
+  // const response = processItem(element, i, cacheKey, entry, isCopy)
+  // console.log({ response })
+
+const changed =renameBodyDocument("18VrBndKwzycowpym313iVDjiaCzliUdePRkU9pNPYMs", data.entry)
+
+console.log({changed})
+
+}
 
 
 

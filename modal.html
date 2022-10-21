@@ -166,7 +166,7 @@
         <select name="script" class="select" id="typeSelector">
           <option value="" disabled selected> --Please choose an option-- </option>
           <option value="tbcTbd">TBC TBD</option>
-          <option disabled value="blankTemplate">Blank Template</option>
+          <option value="blankTemplate">Blank Template</option>
           <option value="updateCodename">Update CodeName</option>
           <option value="duplicateFolder">Duplicate Folder</option>
         </select>
@@ -406,29 +406,40 @@
         i++;
       }
       if(users?.length){
-        logs.push("Finishing...")
-        showProgress()
-        const personKey =/\[PersonName\]/;
 
-        const personList = finished.filter(({ name }) => name.match(personKey))
+        logs.push("Configuring persons...")
+        showProgress(logs)
+        const personKeyRegExp = /\[PersonName\]/
 
+        const personList = finished.filter(({ name }) => name.match(personKeyRegExp))
+        const progressPerson = personList.map(item =>({...item, pending: true}))
+
+        
         for (const { id, isFolder, name, depth } of personList){
+         const fileBase = `⏹${isFolder ? "📁" : "📄"} ${name}`
 
-         logs.push(`✅${"|__".repeat(depth)}|${isFolder ? "📁" : "📄"}| ${name}`)
+         logs.push(fileBase)
+         showProgress(logs)
 
          for (const user of users) {
-            const newName = name.replace(personKey, user)
+            const newName = name.replace(personKeyRegExp, user)
+            
             if (isFolder) {
                await exec("copyFolder", id, newName)
             } else {
-               await exec("copyFile", id, newName)
+               const newFileCopiedId = await exec("copyFile", id, newName)
+
+                const replaceName = [["(?:\\[|<)Your Name(?:\]|>)", user]]
+                await exec("renameBodyDocument", newFileCopiedId, replaceName)
             }
+
+            logs.push(`✅${isFolder ? "📁" : "📄"} ${newName}`)
+            showProgress(logs)
           }
-               await exec("deleteElement", isFolder, id)
+          await exec("deleteElement", isFolder, id)
 
-       
-
-        showProgress(logs)
+          logs.splice(logs.indexOf(fileBase),1)
+          showProgress(logs)
         }    
       }
 
@@ -442,11 +453,13 @@
         await processFiles(rootLinkValue, replaceArray, false)
       }
 
-      const blankTemplate = async (rootLinkValue, newProjectNameValue,newClientName, users) => {
+      const blankTemplate = async (rootLinkValue, codeName,clientName, users) => {
         const replaceArray = [
-           ["[\(\[](?:CustomerName|CLIENT)[\)\]]", newClientName],
-           ["[\(\[\{<](?:Code\s?Name|CODENAME)[\)\]\}>]", newProjectNameValue],
-           ["Project <Name>", "Project " + newProjectNameValue]
+           [ "\\[(?:CustomerName|CLIENT)\\]", clientName],
+           [ "[\\[\\(\\{]Code\\s?Name[\\]\\)\\}]", codeName],
+           [ "<CodeName>",codeName],
+           [ "Project <Name>", "Project " + codeName],
+           [ "<Project Name>", codeName]
         ];
         await processFiles(rootLinkValue, replaceArray, true, users)
         
