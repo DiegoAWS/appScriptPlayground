@@ -339,9 +339,8 @@ const index = (func, ...params) => {
       case "renameBodyDocument":
         return renameBodyDocument(...params)
       default:
-        console.log("Default option reashed")
+        console.log("Default option reached")
         break
-
     }
   } catch (e) {
     console.log("ERROR")
